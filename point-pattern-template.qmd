@@ -20,6 +20,7 @@ execute:
 Load packages
 
 ```{r setup}
+
 library(spatstat)
 library(terra) 
 library(tidyverse)
@@ -41,7 +42,7 @@ voles_sf <- read_sf(dsn = here("data/voledata"),
 
 
 ### Plot it (exploratory)
-# plot(voles_sf)
+plot(voles_sf)
 
 ### Get Humboldt County outline
 humboldt_sf <- read_sf(dsn = here("data/voledata"), 
@@ -77,6 +78,8 @@ To conduct point pattern analysis, we need to blend the voles data as points wit
 ### Convert vole observations to spatial point pattern
 voles_ppp <- as.ppp(voles_sf) 
 
+plot(voles_ppp)
+
 ### Convert county boundary to observation window
 humboldt_win <- as.owin(humboldt_sf) 
 
@@ -100,6 +103,7 @@ plot(voles_density)
 ```
 
 Describe what the sigma parameter does.
+
 
 
 ## Nearest neighbor (G-function)
@@ -130,11 +134,24 @@ plot(gfunction_out)
 ```
 
 
-The observed line is much higher than the bounds of the theoritical line. We have sufficient evidence to conclude the voles are not randomly distributed.  
+The observed line is much higher than the bounds of the theoretical line. We have sufficient evidence to conclude the voles are not randomly distributed.  
 
 While the base plot looks good. Let's make our own in ggplot to practice the our wrangling skills. What is the class of the `gfunction_out` object? What are the column names? What do you think the `obs`, `theo`, `lo`, and `hi` columns represent? How do we pivot the table to a useful dataframe to plot in ggplot?
 
+```{r}
 
+### Gather this to plot series in ggplot:
+gfunction_long <- gfunction_out %>% 
+  as.data.frame() %>% 
+  pivot_longer(cols = obs:hi, names_to = "model", values_to = "g_val")
+
+### Then make a graph in ggplot:
+ggplot(data = gfunction_long, aes(x = r, y = g_val, group = model)) +
+  geom_line(aes(color = model)) +
+  theme_minimal() +
+  labs(x = 'radius (m)', y = 'G(r)')
+
+```
 
 
 ### L-Function
@@ -144,6 +161,28 @@ How does the G-function differ from Ripley's K-function?
 
 
 With the same `envelope()` function from before, calculate the L-function. Because we're looking for the radius around points we have to change our `r` vector to match the entire size of the county ~80km. Also only use nsim=10 because it takes a long time to run.
+
+```{r}
+
+r_vec2 <- seq(0,80000,5000)
+
+lfunction_out <- envelope(voles_full, fun = Lest, r = r_vec2, 
+                          nsim = 10)
+plot(lfunction_out)
+
+lfunction_long <- lfunction_out %>% 
+  as.data.frame() %>% 
+  pivot_longer(cols = obs:hi, names_to = "model", values_to = "l")
+
+ggplot(data = lfunction_long, aes(x = r, y = l)) +
+  geom_line(aes(color = model)) +
+  theme_minimal() +
+  labs(x = 'radius (m)', y = 'L(r)')
+
+lfunction_out
+
+```
+
 
 Plot the L-function and interpret the results.
 
